@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>简易计算器</title>
+<style>
+*{box-sizing:border-box;font-size:20px}
+body{max-width:520px;margin:30px auto;padding:0 10px;font-family:system-ui}
+#inputBox{width:100%;padding:12px;margin-bottom:10px;text-align:right}
+.btn-grid{display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:10px}
+button{padding:14px;border:none;border-radius:4px;cursor:pointer;background:#eee}
+.eq{background:#4096ff;color:white;grid-column: 1 / -1;}
+#historyArea{margin-top:20px}
+.history-item{
+  display:flex;
+  justify-content:space-between;
+  align-items:center;
+  padding:6px 0;
+  border-bottom:1px solid #eee
+}
+.del-btn{
+  background:#ff4d4f;
+  color:white;
+  padding:4px 8px;
+  font-size:14px
+}
+</style>
+</head>
+<body>
+<h2>简易计算器</h2>
+<input id="inputBox" readonly>
+<div class="btn-grid">
+  <button onclick="append('7')">7</button>
+  <button onclick="append('8')">8</button>
+  <button onclick="append('9')">9</button>
+  <button onclick="append('/')">/</button>
+
+  <button onclick="append('4')">4</button>
+  <button onclick="append('5')">5</button>
+  <button onclick="append('6')">6</button>
+  <button onclick="append('*')">*</button>
+
+  <button onclick="append('1')">1</button>
+  <button onclick="append('2')">2</button>
+  <button onclick="append('3')">3</button>
+  <button onclick="append('-')">-</button>
+
+  <button onclick="append('0')">0</button>
+  <button onclick="append('.')">.</button>
+  <button onclick="clearAll()">C</button>
+  <button onclick="append('+')">+</button>
+
+  <button onclick="append('(')">(</button>
+  <button onclick="append(')')">)</button>
+  <button class="eq" onclick="calcEqual()">=</button>
+</div>
+
+<h3>计算历史记录</h3>
+<button onclick="loadHistory()">刷新历史</button>
+<div id="historyArea"></div>
+
+<script>
+const baseUrl = "http://127.0.0.1:3000";
+const input = document.getElementById("inputBox");
+
+function append(s){
+  input.value += s;
+}
+function clearAll(){
+  input.value = "";
+}
+
+async function calcEqual(){
+  const expression = input.value;
+  try{
+    const resp = await fetch(`${baseUrl}/calculate`,{
+      method:"POST",
+      headers:{"Content-Type":"application/json"},
+      body: JSON.stringify({expression})
+    })
+    const data = await resp.json();
+    if(data.success){
+      input.value = data.result;
+      loadHistory();
+    }else{
+      alert("错误："+data.message)
+    }
+  }catch(err){
+    alert("后端未启动，请运行 node server.js");
+  }
+}
+
+async function loadHistory(){
+  const dom = document.getElementById("historyArea");
+  try{
+    const resp = await fetch(`${baseUrl}/history`);
+    const data = await resp.json();
+    if(data.success){
+      let html = "";
+      data.data.forEach(item=>{
+        html += `
+        <div class="history-item">
+          <span>${item.expr} = ${item.result}</span>
+          <button class="del-btn" onclick="del(${item.id})">删除</button>
+        </div>`
+      })
+      dom.innerHTML = html;
+    }
+  }catch(e){
+    dom.innerHTML = "读取历史失败";
+  }
+}
+
+async function del(id){
+  await fetch(`${baseUrl}/history/${id}`,{method:"DELETE"});
+  loadHistory();
+}
+
+window.onload = loadHistory;
+</script>
+</body>
+</html>
+
+
